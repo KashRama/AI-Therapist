@@ -1,0 +1,11 @@
+{
+  "name": "ingest-documents",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Lambda function: ingests therapy documents from S3 into Supabase pgvector",
+  "main": "index.mjs",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@supabase/supabase-js": "^2.0.0"
+  }
+}

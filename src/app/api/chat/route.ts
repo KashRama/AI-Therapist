@@ -1,13 +1,14 @@
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import {
   ensureChatExists,
   saveMessage,
   updateChatTitle,
 } from "@/lib/chat-db";
+import { getRelevantContext } from "@/lib/rag";
 
-const THERAPIST_SYSTEM_PROMPT = `You are a warm, empathetic AI therapist. Your role is to provide emotional support and guidance in a safe, non-judgmental space.
+const BASE_SYSTEM_PROMPT = `You are a warm, empathetic AI therapist. Your role is to provide emotional support and guidance in a safe, non-judgmental space.
 
 Guidelines for your responses:
 - Listen actively and validate the user's feelings before offering insights
@@ -18,6 +19,18 @@ Guidelines for your responses:
 - Be mindful of crisis situations—if someone mentions self-harm or danger, encourage them to seek immediate professional help
 
 Remember: You are a supportive companion, not a replacement for licensed mental health professionals. When appropriate, suggest professional resources when users need specialized care.`;
+
+function buildSystemPrompt(ragContext: string): string {
+  if (!ragContext) return BASE_SYSTEM_PROMPT;
+  return `${BASE_SYSTEM_PROMPT}
+
+---
+RELEVANT KNOWLEDGE BASE CONTEXT:
+The following excerpts from therapeutic resources may be relevant to this conversation. Draw on them naturally — do not quote them directly or mention their existence to the user.
+
+${ragContext}
+---`;
+}
 
 export const maxDuration = 30;
 
@@ -78,9 +91,11 @@ export async function POST(req: Request) {
     }
   }
 
+  const ragContext = await getRelevantContext(userText);
+
   const result = streamText({
-    model: openai("gpt-4o"),
-    system: THERAPIST_SYSTEM_PROMPT,
+    model: anthropic("claude-sonnet-4-6"),
+    system: buildSystemPrompt(ragContext),
     messages: await convertToModelMessages(messages),
   });
 
