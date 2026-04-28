@@ -46,6 +46,10 @@ function getTextFromMessage(message: UIMessage): string {
 }
 
 export async function POST(req: Request) {
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return new Response("Unauthorized", { status: 401 });
+
   const body = await req.json();
   const { messages, id: chatId } = body as {
     messages: UIMessage[];
@@ -56,38 +60,29 @@ export async function POST(req: Request) {
     return new Response("Missing messages", { status: 400 });
   }
 
-  const supabase = createServerSupabaseClient();
-
-  // Use chatId from request, or generate one for new chats
   const effectiveChatId = chatId ?? crypto.randomUUID();
 
-  // Get the last user message (the one we're responding to)
   const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
   const userText = lastUserMessage ? getTextFromMessage(lastUserMessage) : "";
 
   if (userText) {
     try {
-      await ensureChatExists(supabase, effectiveChatId);
+      await ensureChatExists(supabase, effectiveChatId, "New conversation", user.id);
       await saveMessage(supabase, effectiveChatId, "user", userText);
 
-      // Update chat title from first user message if it's still default
       const chats = await supabase
         .from("chats")
         .select("title")
         .eq("id", effectiveChatId)
         .single();
       const currentTitle = chats.data?.title ?? "";
-      if (
-        currentTitle === "New conversation" ||
-        currentTitle === "New Chat"
-      ) {
+      if (currentTitle === "New conversation" || currentTitle === "New Chat") {
         const title =
           userText.length > 50 ? `${userText.slice(0, 50)}...` : userText;
         await updateChatTitle(supabase, effectiveChatId, title);
       }
     } catch (err) {
       console.error("Failed to save user message:", err);
-      // Continue streaming even if save fails
     }
   }
 
@@ -104,7 +99,6 @@ export async function POST(req: Request) {
       if (!responseMessage) return;
       const assistantText = getTextFromMessage(responseMessage as UIMessage);
       if (!assistantText) return;
-
       try {
         await saveMessage(supabase, effectiveChatId, "assistant", assistantText);
       } catch (err) {

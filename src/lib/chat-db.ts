@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type DbChat = {
   id: string;
   title: string;
+  user_id: string;
   created_at: string;
   updated_at: string;
 };
@@ -17,11 +18,12 @@ export type DbMessage = {
 
 export async function createChat(
   supabase: SupabaseClient,
-  title = "New conversation"
+  title = "New conversation",
+  userId: string
 ): Promise<DbChat> {
   const { data, error } = await supabase
     .from("chats")
-    .insert({ title })
+    .insert({ title, user_id: userId })
     .select()
     .single();
 
@@ -29,10 +31,14 @@ export async function createChat(
   return data;
 }
 
-export async function getChats(supabase: SupabaseClient): Promise<DbChat[]> {
+export async function getChats(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<DbChat[]> {
   const { data, error } = await supabase
     .from("chats")
     .select("*")
+    .eq("user_id", userId)
     .order("updated_at", { ascending: false });
 
   if (error) throw error;
@@ -97,7 +103,6 @@ export async function saveMessage(
 
   if (error) throw error;
 
-  // Update chat's updated_at
   await supabase
     .from("chats")
     .update({ updated_at: new Date().toISOString() })
@@ -109,17 +114,15 @@ export async function saveMessage(
 export async function ensureChatExists(
   supabase: SupabaseClient,
   chatId: string,
-  initialTitle?: string
+  initialTitle = "New conversation",
+  userId?: string
 ): Promise<DbChat> {
   const existing = await getChat(supabase, chatId);
   if (existing) return existing;
 
   const { data, error } = await supabase
     .from("chats")
-    .insert({
-      id: chatId,
-      title: initialTitle ?? "New conversation",
-    })
+    .insert({ id: chatId, title: initialTitle, user_id: userId })
     .select()
     .single();
 

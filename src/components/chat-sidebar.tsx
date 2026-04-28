@@ -1,9 +1,11 @@
 "use client";
 
-import { MessageSquarePlusIcon } from "lucide-react";
+import { MessageSquarePlusIcon, LogOutIcon } from "lucide-react";
+import { createClientSupabaseClient } from "@/lib/supabase-client";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -93,6 +95,21 @@ export function ChatSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+          onClick={async () => {
+            const supabase = createClientSupabaseClient();
+            await supabase.auth.signOut();
+            window.location.href = "/login";
+          }}
+        >
+          <LogOutIcon className="size-4" />
+          Sign out
+        </Button>
+      </SidebarFooter>
     </Sidebar>
   );
 }

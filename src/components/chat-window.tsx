@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import { createClientSupabaseClient } from "@/lib/supabase-client";
 
 interface ChatWindowProps {
   sessionId: string | null;
@@ -202,6 +203,15 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
     id: string;
     messages: UIMessage[];
   } | null>(null);
+  const [firstName, setFirstName] = useState<string>("");
+
+  useEffect(() => {
+    const supabase = createClientSupabaseClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const full = session?.user?.user_metadata?.full_name ?? session?.user?.user_metadata?.name ?? "";
+      setFirstName(full.split(" ")[0] ?? "");
+    });
+  }, []);
 
   useEffect(() => {
     if (!sessionId) {
@@ -226,7 +236,7 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
           <MessageSquareIcon className="size-12 text-primary" />
         </div>
         <h2 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">
-          Welcome to AI Therapist
+          Welcome to your AI Therapist{firstName ? `, ${firstName}` : ""}!
         </h2>
         <p className="mb-8 max-w-md text-muted-foreground">
           Start a new conversation to begin. Share what&apos;s on your mind, and

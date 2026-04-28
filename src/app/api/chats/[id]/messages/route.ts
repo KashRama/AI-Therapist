@@ -8,14 +8,14 @@ export async function GET(
 ) {
   try {
     const { id: chatId } = await params;
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const messages = await getMessages(supabase, chatId);
     return NextResponse.json(messages);
   } catch (error) {
     console.error("Failed to fetch messages:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch messages" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
   }
 }
