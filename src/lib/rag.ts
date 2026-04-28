@@ -34,7 +34,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
 export async function getRelevantContext(userMessage: string): Promise<string> {
   try {
     const embedding = await generateEmbedding(userMessage);
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
 
     const { data: chunks, error } = await supabase.rpc("match_documents", {
       query_embedding: embedding,
