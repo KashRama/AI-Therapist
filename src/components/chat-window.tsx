@@ -7,8 +7,8 @@ import type { UIMessage } from "ai";
 import { MessageSquareIcon, SendIcon, Loader2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
 
 interface ChatWindowProps {
   sessionId: string | null;
@@ -26,35 +26,24 @@ function dbMessageToUIMessage(m: {
   };
 }
 
-export function ChatWindow({ sessionId }: ChatWindowProps) {
+// Inner component — only mounts once messages are loaded, so useChat
+// always initializes with the correct initial state for this session.
+function ChatInterface({
+  sessionId,
+  initialMessages,
+}: {
+  sessionId: string;
+  initialMessages: UIMessage[];
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [initialMessages, setInitialMessages] = useState<UIMessage[] | null>(
-    null
-  );
-
-  useEffect(() => {
-    if (!sessionId) {
-      setInitialMessages(null);
-      return;
-    }
-    setInitialMessages(null);
-    fetch(`/api/chats/${sessionId}/messages`)
-      .then((res) => res.json())
-      .then((data: { id: string; role: string; content: string }[]) => {
-        setInitialMessages(data.map(dbMessageToUIMessage));
-      })
-      .catch(() => setInitialMessages([]));
-  }, [sessionId]);
+  const [input, setInput] = useState("");
 
   const { messages, sendMessage, status, stop, error } = useChat({
-    id: sessionId ?? undefined,
-    messages: initialMessages ?? undefined,
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-    }),
+    id: sessionId,
+    messages: initialMessages,
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
   });
 
-  const [input, setInput] = useState("");
   const isLoading = status === "submitted" || status === "streaming";
 
   useEffect(() => {
@@ -69,40 +58,9 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
     setInput("");
   };
 
-  if (!sessionId) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-        <div className="mb-6 rounded-full bg-primary/10 p-6">
-          <MessageSquareIcon className="size-12 text-primary" />
-        </div>
-        <h2 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">
-          Welcome to AI Therapist
-        </h2>
-        <p className="mb-8 max-w-md text-muted-foreground">
-          Start a new conversation to begin. Share what&apos;s on your mind, and
-          I&apos;ll be here to listen and support you.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Click &quot;New Chat&quot; in the sidebar to get started
-        </p>
-      </div>
-    );
-  }
-
-  if (initialMessages === null) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2Icon className="size-5 animate-spin" />
-          <span>Loading conversation...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-1 flex-col h-full min-h-0">
-      <ScrollArea className="flex-1 px-4 py-6">
+    <div className="flex flex-1 flex-col min-h-0">
+      <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto max-w-2xl space-y-8 pb-4">
           {error && (
             <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -148,7 +106,27 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
                       : "bg-muted/50 text-foreground border border-border/50"
                   )}
                 >
-                  <p className="whitespace-pre-wrap">{textContent}</p>
+                  {isUser ? (
+                    <p className="whitespace-pre-wrap">{textContent}</p>
+                  ) : (
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>,
+                        ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-1">{children}</ul>,
+                        ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-1">{children}</ol>,
+                        li: ({ children }) => <li>{children}</li>,
+                        h1: ({ children }) => <h1 className="mb-2 text-lg font-bold">{children}</h1>,
+                        h2: ({ children }) => <h2 className="mb-2 text-base font-bold">{children}</h2>,
+                        h3: ({ children }) => <h3 className="mb-1 font-semibold">{children}</h3>,
+                        code: ({ children }) => <code className="rounded bg-muted px-1 py-0.5 text-sm font-mono">{children}</code>,
+                        blockquote: ({ children }) => <blockquote className="border-l-2 border-border pl-3 italic text-muted-foreground">{children}</blockquote>,
+                      }}
+                    >
+                      {textContent}
+                    </ReactMarkdown>
+                  )}
                 </div>
               </div>
             );
@@ -167,13 +145,10 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
           )}
           <div ref={scrollRef} />
         </div>
-      </ScrollArea>
+      </div>
 
       <div className="shrink-0 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <form
-          onSubmit={handleSubmit}
-          className="mx-auto max-w-2xl px-4 py-4"
-        >
+        <form onSubmit={handleSubmit} className="mx-auto max-w-2xl px-2 py-2">
           <div className="relative flex gap-2 rounded-xl border border-border bg-muted/30 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
             <Textarea
               value={input}
@@ -187,16 +162,16 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
               placeholder="Share what's on your mind..."
               disabled={isLoading}
               rows={1}
-              className="min-h-12 max-h-32 resize-none border-0 bg-transparent px-4 py-3 focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="min-h-1 max-h-64 resize-none border-0 bg-transparent px-4 py-2 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
-            <div className="flex items-end gap-1 p-2">
+            <div className="flex items-center pr-2">
               {isLoading ? (
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   onClick={stop}
-                  className="size-9 shrink-0 rounded-lg"
+                  className="size-7 shrink-0 rounded-lg"
                 >
                   <span className="sr-only">Stop</span>
                   <div className="size-2 rounded-full bg-destructive" />
@@ -206,7 +181,7 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
                   type="submit"
                   size="icon"
                   disabled={!input.trim()}
-                  className="size-9 shrink-0 rounded-lg"
+                  className="size-7 shrink-0 rounded-lg"
                 >
                   <span className="sr-only">Send</span>
                   <SendIcon className="size-4" />
@@ -214,11 +189,72 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
               )}
             </div>
           </div>
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            Press Enter to send, Shift+Enter for new line
-          </p>
         </form>
       </div>
     </div>
+  );
+}
+
+// Outer component — handles fetching and loading state, then hands off
+// to ChatInterface only when messages are ready.
+export function ChatWindow({ sessionId }: ChatWindowProps) {
+  const [loadedSession, setLoadedSession] = useState<{
+    id: string;
+    messages: UIMessage[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!sessionId) {
+      setLoadedSession(null);
+      return;
+    }
+    setLoadedSession(null);
+    fetch(`/api/chats/${sessionId}/messages`)
+      .then((res) => res.json())
+      .then((data: { id: string; role: string; content: string }[]) => {
+        setLoadedSession({ id: sessionId, messages: data.map(dbMessageToUIMessage) });
+      })
+      .catch(() => {
+        setLoadedSession({ id: sessionId, messages: [] });
+      });
+  }, [sessionId]);
+
+  if (!sessionId) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
+        <div className="mb-6 rounded-full bg-primary/10 p-6">
+          <MessageSquareIcon className="size-12 text-primary" />
+        </div>
+        <h2 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">
+          Welcome to AI Therapist
+        </h2>
+        <p className="mb-8 max-w-md text-muted-foreground">
+          Start a new conversation to begin. Share what&apos;s on your mind, and
+          I&apos;ll be here to listen and support you.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Click &quot;New Chat&quot; in the sidebar to get started
+        </p>
+      </div>
+    );
+  }
+
+  if (!loadedSession) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2Icon className="size-5 animate-spin" />
+          <span>Loading conversation...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ChatInterface
+      key={loadedSession.id}
+      sessionId={loadedSession.id}
+      initialMessages={loadedSession.messages}
+    />
   );
 }

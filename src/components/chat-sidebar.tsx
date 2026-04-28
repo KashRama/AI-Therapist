@@ -74,13 +74,15 @@ export function ChatSidebar({
                       <SidebarMenuButton
                         isActive={activeSessionId === session.id}
                         onClick={() => onSelectSession(session.id)}
-                        className="flex flex-col items-stretch gap-0.5 py-2.5"
+                        size="lg"
                       >
-                        <span className="truncate text-left">
-                          {session.title}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(session.updatedAt)}
+                        <span className="flex flex-col gap-0.5 overflow-hidden">
+                          <span className="truncate text-left">
+                            {session.title}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(session.updatedAt)}
+                          </span>
                         </span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
