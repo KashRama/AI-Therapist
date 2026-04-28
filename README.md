@@ -1,1 +1,4 @@
 This repository contains the code to an AI Therapy Chatbot. It uses Next.js as the base framework, Tailwind for styling, Supabase for the backend service, VoyageAI for text to embedding processing, and a Claude token to interface with the GPT LLM. The chatbot utilizes RAG to act and provide information as if it were a real therapist. Safety is ensured through the system prompts, which ensure that the chatbot will only provide beneficial information, and will provide resources to help the user find help.
+
+Website - https://ai-therapist.vercel.app/
+Please use tokens sparingly, I still have to pay for them :)
